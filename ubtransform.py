@@ -16,27 +16,37 @@ soup = BeautifulSoup(html, 'html.parser')
 # These should be five, one day at a time
 day_block_tables = soup.findAll("div", {"class": "day-block"})
 
+# Menues for each day as list
 menues = {"Montag": [], "Dienstag": [], "Mittwoch": [], "Donnerstag": [], "Freitag": []}
+
+# Well, these are the days
 days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"]
-special_case_action = ""
+
+# Collect special info about the "AT", since it may appear multiple times a day
+special_case_aktions_theke = ""
 
 idx = 0
 for item in day_block_tables:
     # This is Monday to Friday
     for row in item.find_all('tr'):
         # Make this a function some day
-        kind = str(row.find_all_next()[0].get_text().strip().replace("\t", '').replace("\n", '')).replace('\xc3', 'u').replace('\xbc', 'e').replace('u\xa4', 'ae').replace('u\x9f', 'ss').replace('u\xb6', 'oe')
-        food = str(row.find_all_next()[1].get_text().strip().replace("\t", '').replace("\n", '')).replace('\xc3', 'u').replace('\xbc', 'e').replace('u\xa4', 'ae').replace('u\x9f', 'ss').replace('u\xb6', 'oe')
+        kind = str(row.find_all_next()[0].get_text().replace('/ Suppe', '').replace("\t", '').replace("\n", '')).replace('\xc3', 'u').replace('\xbc', 'e').replace('u\xa4', 'ae').replace('u\x9f', 'ss').replace('u\xb6', 'oe').strip()
+        food = str(row.find_all_next()[1].get_text().replace('/ Suppe', '').replace("\t", '').replace("\n", '')).replace('\xc3', 'u').replace('\xbc', 'e').replace('u\xa4', 'ae').replace('u\x9f', 'ss').replace('u\xb6', 'oe').strip()
+        # Ignore Dessert
         if "Dessertbuffet" in kind:
             continue
+        # Accumulate "Aktions-Theke", add at the end
         if kind == "Aktions-Theke":
-            special_case_action += food
-            clean_food = re.sub(r'\(([^)]+)\)', '', special_case_action).replace("kcal", ". kcal")
+            clean_food = re.sub(r'\(([^)]+)\)', '', food).replace("kcal", ". kcal").replace(".", ". ").replace("!", "! ").replace(":", ": ")
+            special_case_aktions_theke += clean_food
+            continue
         else:
-            clean_food = re.sub(r'\(([^)]+)\)', '', food).replace("kcal", ". kcal")
+            clean_food = re.sub(r'\(([^)]+)\)', '', food).replace("kcal", ". kcal").replace(".", ". ").replace("!", "! ").replace(":", ": ")
         menues[days[idx]].append({kind: clean_food})
+    # This one is a special case, add last
+    menues[days[idx]].append({"Aktions-Theke": special_case_aktions_theke})
+    special_case_aktions_theke = ""
     idx += 1
-    special_case_action = ""
 
 with open('ub_mensa.json', 'w') as outfile:
     out = json.dumps(menues)
